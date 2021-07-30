@@ -298,7 +298,7 @@ def searchhydro(df, sd):
     daily_hydronum_tocsv(hydronum_daily)
     print('The number of hydropeak is', hydropeak_num)
     print('The sd is', sd)
-    plothydro()   
+    plothydro(df)   
 
 def to_integer(datetime):
     return int(datetime.total_seconds()/60)
@@ -327,7 +327,7 @@ def data_tocsv(leftdrop,rightdrop,timestart,timeend,rightslope,leftslope,peak_du
                                              ])
     AllData.to_csv('Output.csv')
 
-def plothydro():
+def plothydro(df):
     plt.title('list')
     plt.xlabel('time')
     plt.ylabel('water level')
