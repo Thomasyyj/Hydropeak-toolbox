@@ -5,12 +5,13 @@ from datetime import timedelta
 from pandas.plotting import register_matplotlib_converters
 from datetime import datetime
 
+
 def readtemplate(path):
     filename = path[-4:]
     if filename == '.csv':
-        data = pd.read_csv(path, nrows=14000)
+        data = pd.read_csv(path)
     elif filename == 'xlsx':
-        data = pd.read_excel(path, nrows=14000)
+        data = pd.read_excel(path)
     return data
 
 
@@ -145,11 +146,14 @@ def filterhydro(df, sd):
                     end_val = df.at[i + 1, 'waterlevel']
                     smooth_count = 0
     print('We have filtered', fit_count, 'flowing within the sd')
-    ax.set_title('The waterlevel before and after filtering')
+    ax.set_title(
+        'First round filtering (filtering %d peaks within 0.25sd)' % (fit_count))
     ax.set_xlabel('time')
     ax.set_ylabel('water level')
     ax.plot(df['time'], df['waterlevel'], label='After')
     ax.legend(loc='best')
+    for tick in ax.get_xticklabels():
+        tick.set_rotation(90)
     plt.show()
 #    return df
 
@@ -162,6 +166,7 @@ def filterhydro_plot(df, sd):
         if ctn == '1':
             break
 
+
 def datetime_preprocess(df):
     df['time'] = pd.to_datetime(df['time'])
     df1 = df.set_index('time')
@@ -171,7 +176,8 @@ def datetime_preprocess(df):
     date_list = list(x.strftime('%d-%m-%Y') for x in date_num.index)
     date_num = list(date_num['num'])
     return date_num, date_list
-            
+
+
 def searchhydro(df, sd):
     global time1, time2, bottom, top, uptemp, downtemp, timestart, timeend, valuestart, valueend, smooth_count
     # Initialize the data
@@ -193,15 +199,15 @@ def searchhydro(df, sd):
     peak_duration = []
     peak_duration_count = 0
     smooth_count = 0
-    
-    #import the time series
+
+    # import the time series
     date_num, date_list = datetime_preprocess(df)
     last_hydronum = 0
     last_day = 0
-    day_count = 0 
-    hydronum_daily = {'number':[],'date':[]}
+    day_count = 0
+    hydronum_daily = {'number': [], 'date': []}
     for i in range(len(df['waterlevel'])-1):
-        #append the hydronum
+        # append the hydronum
         if i-last_day == date_num[day_count]-1:
             hydronum_daily['number'].append(hydropeak_num-last_hydronum)
             hydronum_daily['date'].append(date_list[day_count])
@@ -213,7 +219,7 @@ def searchhydro(df, sd):
             hydronum_daily['number'].append(hydropeak_num-last_hydronum)
             hydronum_daily['date'].append(date_list[day_count])
             last_hydronum = hydropeak_num
-        #start searching hydronum
+        # start searching hydronum
         currtime = i
         currvalue = df.at[i, 'waterlevel']
         # set the gradient
@@ -247,7 +253,7 @@ def searchhydro(df, sd):
                 smooth_count = 0
                 peak_duration_count = 0
             # match
-            
+
         elif downtemp == 1 and uptemp == 1:
             if gradient > 0:
                 hydropeak_num += 1
@@ -294,47 +300,53 @@ def searchhydro(df, sd):
                     end_val = df.at[i + 1, 'waterlevel']
                     time2 = currtime + 1
                     smooth_count = 0
-    data_tocsv(leftdrop,rightdrop,timestart,timeend,rightslope,leftslope,peak_duration_count)    
+    data_tocsv(leftdrop,rightdrop,timestart,timeend,rightslope,leftslope,peak_duration_count)
     daily_hydronum_tocsv(hydronum_daily)
     print('The number of hydropeak is', hydropeak_num)
     print('The sd is', sd)
-    plothydro(df)   
+    plothydro(df, hydropeak_num, sd)
+
 
 def to_integer(datetime):
     return int(datetime.total_seconds()/60)
 
+
 def daily_hydronum_tocsv(hydronum_daily):
     hydronum_daily = pd.DataFrame(hydronum_daily)
     hydronum_daily.to_csv('Daily_hydronum.csv')
-    
-def data_tocsv(leftdrop,rightdrop,timestart,timeend,rightslope,leftslope,peak_duration_count):
+
+
+def data_tocsv(leftdrop, rightdrop, timestart, timeend, rightslope, leftslope, peak_duration_count):
     AllData = {
         'leftdrop': leftdrop,
         'rightdrop': rightdrop,
-        'starting_time':timestart,
-        'ending_time':timeend,
-        'rightslope':rightslope,
-        'leftslope':leftslope,
-        'peak_duration':peak_duration_count
+        'starting_time': timestart,
+        'ending_time': timeend,
+        'rightslope': rightslope,
+        'leftslope': leftslope,
+        'peak_duration': peak_duration_count
     }
-    AllData = pd.DataFrame(AllData,columns=['leftdrop',
-                                              'rightdrop',
-                                              'starting_time',
+    AllData = pd.DataFrame(AllData, columns=['leftdrop',
+                                             'rightdrop',
+                                             'starting_time',
                                              'ending_time',
                                              'rightslope',
                                              'leftslope',
-                                              'peak_duration'
+                                             'peak_duration'
                                              ])
     AllData.to_csv('Output.csv')
 
-def plothydro(df):
-    plt.title('list')
+
+def plothydro(df, hydronum, sd):
+    plt.title('Case2: Natural peaking(hydronum:%d with sd:%.3f)' %
+              (hydronum, sd))
     plt.xlabel('time')
     plt.ylabel('water level')
     plt.plot(df['time'], df['waterlevel'])
     plt.scatter(timestart, valuestart, c='g')
     plt.scatter(timeend, valueend, c='r')
-    plt.show()    
+    plt.show()
+
 
 if __name__ == "__main__":
     register_matplotlib_converters()
@@ -353,9 +365,10 @@ if __name__ == "__main__":
                 path = input(
                     'Cannot find the file or there is something wrong. Please input again\n')
     try:
-        sd = 0.5 * cal_sd(df)
-        filterhydro_plot(df, sd)
-        searchhydro(df, sd)
+        df1 = df.loc[74448:90000].reset_index()
+        sd = 0.25 * cal_sd(df1)
+        filterhydro_plot(df1, sd)
+        searchhydro(df1, sd)
     except KeyError:
         print('Please ensure there are columns named‘time’，‘waterlevel’\n')
     print('finished')
